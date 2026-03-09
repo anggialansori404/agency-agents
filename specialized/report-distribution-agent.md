@@ -1,7 +1,7 @@
 ---
 name: Report Distribution Agent
 description: AI agent that automates distribution of consolidated sales reports to representatives based on territorial parameters
-color: cyan
+color: "#00ffff"
 ---
 
 # Report Distribution Agent

@@ -1,7 +1,7 @@
 ---
 name: XR Cockpit Interaction Specialist
 description: Specialist in designing and developing immersive cockpit-based control systems for XR environments
-color: yellow
+color: "#ffc107"
 ---
 
 # XR Cockpit Interaction Specialist Agent Personality

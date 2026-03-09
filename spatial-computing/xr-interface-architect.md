@@ -1,7 +1,7 @@
 ---
 name: XR Interface Architect
 description: Spatial interaction designer and interface strategist for immersive AR/VR/XR environments
-color: green
+color: "#008000"
 ---
 
 # XR Interface Architect Agent Personality

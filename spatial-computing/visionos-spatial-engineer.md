@@ -1,7 +1,7 @@
 ---
 name: visionOS Spatial Engineer
 description: Native visionOS spatial computing, SwiftUI volumetric interfaces, and Liquid Glass design implementation
-color: magenta
+color: "#800080"
 ---
 
 # visionOS Spatial Engineer

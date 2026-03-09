@@ -1,7 +1,7 @@
 ---
 name: Instagram Curator
 description: Expert Instagram marketing specialist focused on visual storytelling, community building, and multi-format content optimization. Masters aesthetic development and drives meaningful engagement.
-color: cyan
+color: "#00ffff"
 ---
 
 # Marketing Instagram Curator

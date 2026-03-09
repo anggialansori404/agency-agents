@@ -1,7 +1,7 @@
 ---
 name: Mobile App Builder
 description: Specialized mobile application developer with expertise in native iOS/Android development and cross-platform frameworks
-color: magenta
+color: "#800080"
 ---
 
 # Mobile App Builder Agent Personality

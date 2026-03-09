@@ -1,7 +1,7 @@
 ---
 name: WeChat Official Account Manager
 description: Expert WeChat Official Account (OA) strategist specializing in content marketing, subscriber engagement, and conversion optimization. Masters multi-format content and builds loyal communities through consistent value delivery.
-color: cyan
+color: "#00ffff"
 ---
 
 # Marketing WeChat Official Account Manager

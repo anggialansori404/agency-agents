@@ -1,7 +1,7 @@
 ---
 name: Brand Guardian
 description: Expert brand strategist and guardian specializing in brand identity development, consistency maintenance, and strategic brand positioning
-color: #007ACC
+color: blue
 ---
 
 # Brand Guardian Agent Personality

@@ -1,0 +1,375 @@
+<#
+.SYNOPSIS
+convert.ps1 - Convert agency agent .md files into tool-specific formats.
+
+.DESCRIPTION
+Reads all agent files from the standard category directories and outputs
+converted files to integrations/<tool>/. Run this to regenerate all
+integration files after adding or modifying agents.
+
+.PARAMETER tool
+The tool to convert for: antigravity, gemini-cli, opencode, cursor, aider, windsurf, all (default).
+
+.PARAMETER out
+Output directory. Defaults to integrations/ relative to the repo root.
+#>
+
+param(
+    [string]$tool = "all",
+    [string]$out = "",
+    [switch]$help
+)
+
+$ErrorActionPreference = "Stop"
+
+if ($help) {
+    Get-Help $MyInvocation.MyCommand.Path -Detailed
+    exit 0
+}
+
+# --- Colour helpers ---
+function Write-Info($text) {
+    Write-Host "[OK]  " -ForegroundColor Green -NoNewline
+    Write-Host $text
+}
+function Write-Warn($text) {
+    Write-Host "[!!]  " -ForegroundColor Yellow -NoNewline
+    Write-Host $text
+}
+function Write-ErrorText($text) {
+    Write-Host "[ERR] " -ForegroundColor Red -NoNewline
+    Write-Host $text
+}
+function Write-Header($text) {
+    Write-Host "`n$text" -ForegroundColor Cyan -NoNewline
+    Write-Host ""
+}
+
+# --- Paths ---
+$SCRIPT_DIR = $PSScriptRoot
+$REPO_ROOT = (Resolve-Path "$SCRIPT_DIR\..").ProviderPath
+
+if ([string]::IsNullOrWhiteSpace($out)) {
+    $OUT_DIR = Join-Path $REPO_ROOT "integrations"
+} else {
+    $OUT_DIR = $out
+}
+
+$TODAY = Get-Date -Format "yyyy-MM-dd"
+
+$AGENT_DIRS = @(
+    "design", "engineering", "marketing", "product", "project-management",
+    "testing", "support", "spatial-computing", "specialized"
+)
+
+$VALID_TOOLS = @("antigravity", "gemini-cli", "opencode", "cursor", "aider", "windsurf", "all")
+if ($tool -notin $VALID_TOOLS) {
+    Write-ErrorText "Unknown tool '$tool'. Valid: $($VALID_TOOLS -join ' ')"
+    exit 1
+}
+
+# --- Frontmatter helpers ---
+
+function Get-Field($lines, $field) {
+    foreach ($line in $lines) {
+        if ($line -match "^$($field): (.*)$") {
+            return $matches[1]
+        }
+    }
+    return ""
+}
+
+function ConvertTo-Slug($text) {
+    if ([string]::IsNullOrWhiteSpace($text)) { return "" }
+    $text = $text.ToLower()
+    $text = $text -replace '[^a-z0-9]', '-'
+    $text = $text -replace '-+', '-'
+    $text = $text.Trim('-')
+    return $text
+}
+
+# Text encoding that matches Bash's output (UTF8 without BOM)
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+# --- Per-tool converters ---
+
+function Convert-Antigravity($name, $description, $slug, $bodyLines) {
+    $agentSlug = "agency-$slug"
+    $outdir = Join-Path $OUT_DIR "antigravity\$agentSlug"
+    $outfile = Join-Path $outdir "SKILL.md"
+    
+    if (-not (Test-Path $outdir)) {
+        New-Item -ItemType Directory -Path $outdir -Force | Out-Null
+    }
+
+    $bodyStr = $bodyLines -join "`n"
+    
+    $content = @"
+---
+name: $agentSlug
+description: $description
+risk: low
+source: community
+date_added: '$TODAY'
+---
+$bodyStr
+"@
+    # Add trailing newline like bash does with Heredoc
+    $content += "`n"
+
+    [System.IO.File]::WriteAllText($outfile, $content, $utf8NoBom)
+}
+
+function Convert-GeminiCli($name, $description, $slug, $bodyLines) {
+    $outdir = Join-Path $OUT_DIR "gemini-cli\skills\$slug"
+    $outfile = Join-Path $outdir "SKILL.md"
+    
+    if (-not (Test-Path $outdir)) {
+        New-Item -ItemType Directory -Path $outdir -Force | Out-Null
+    }
+
+    $bodyStr = $bodyLines -join "`n"
+    
+    $content = @"
+---
+name: $slug
+description: $description
+---
+$bodyStr
+"@
+    $content += "`n"
+
+    [System.IO.File]::WriteAllText($outfile, $content, $utf8NoBom)
+}
+
+function Convert-OpenCode($name, $description, $color, $slug, $bodyLines) {
+    $outdir = Join-Path $OUT_DIR "opencode\agent"
+    $outfile = Join-Path $outdir "$slug.md"
+    
+    if (-not (Test-Path $outdir)) {
+        New-Item -ItemType Directory -Path $outdir -Force | Out-Null
+    }
+
+    $bodyStr = $bodyLines -join "`n"
+    
+    $content = @"
+---
+name: $name
+description: $description
+color: $color
+---
+$bodyStr
+"@
+    $content += "`n"
+
+    [System.IO.File]::WriteAllText($outfile, $content, $utf8NoBom)
+}
+
+function Convert-Cursor($name, $description, $slug, $bodyLines) {
+    $outdir = Join-Path $OUT_DIR "cursor\rules"
+    $outfile = Join-Path $outdir "$slug.mdc"
+    
+    if (-not (Test-Path $outdir)) {
+        New-Item -ItemType Directory -Path $outdir -Force | Out-Null
+    }
+
+    $bodyStr = $bodyLines -join "`n"
+    
+    $content = @"
+---
+description: $description
+globs: ""
+alwaysApply: false
+---
+$bodyStr
+"@
+    $content += "`n"
+
+    [System.IO.File]::WriteAllText($outfile, $content, $utf8NoBom)
+}
+
+# Aider and Windsurf accumulation
+$Script:AIDER_CONTENT = @"
+# The Agency — AI Agent Conventions
+#
+# This file provides Aider with the full roster of specialized AI agents from
+# The Agency (https://github.com/msitarzewski/agency-agents).
+#
+# To activate an agent, reference it by name in your Aider session prompt, e.g.:
+#   "Use the Frontend Developer agent to review this component."
+#
+# Generated by scripts/convert.sh — do not edit manually.
+
+"@
+
+$Script:WINDSURF_CONTENT = @"
+# The Agency — AI Agent Rules for Windsurf
+#
+# Full roster of specialized AI agents from The Agency.
+# To activate an agent, reference it by name in your Windsurf conversation.
+#
+# Generated by scripts/convert.sh — do not edit manually.
+
+"@
+
+function Accumulate-Aider($name, $description, $bodyLines) {
+    $bodyStr = $bodyLines -join "`n"
+    $Script:AIDER_CONTENT += @"
+
+---
+
+## $name
+
+> $description
+
+$bodyStr
+"@
+}
+
+function Accumulate-Windsurf($name, $description, $bodyLines) {
+    $bodyStr = $bodyLines -join "`n"
+    $Script:WINDSURF_CONTENT += @"
+
+================================================================================
+## $name
+$description
+================================================================================
+
+$bodyStr
+
+"@
+}
+
+# --- Main loop ---
+
+function Run-Conversions($t) {
+    $count = 0
+
+    foreach ($dir in $AGENT_DIRS) {
+        $dirpath = Join-Path $REPO_ROOT $dir
+        if (-not (Test-Path $dirpath)) { continue }
+
+        $mdFiles = Get-ChildItem -Path $dirpath -Filter "*.md" -File | Sort-Object Name
+        foreach ($file in $mdFiles) {
+            # Read all lines
+            $lines = Get-Content $file.FullName -Raw -Encoding UTF8
+            $lineArray = $lines -split "`r?`n"
+            
+            if ($lineArray.Count -eq 0 -or $lineArray[0] -ne "---") {
+                continue
+            }
+
+            $secondDash = -1
+            for ($i = 1; $i -lt $lineArray.Count; $i++) {
+                if ($lineArray[$i] -eq "---") {
+                    $secondDash = $i
+                    break
+                }
+            }
+
+            if ($secondDash -eq -1) {
+                continue
+            }
+
+            $frontmatter = @()
+            if ($secondDash -gt 1) {
+                $frontmatter = $lineArray[1..($secondDash - 1)]
+            }
+            
+            $name = Get-Field $frontmatter "name"
+            if ([string]::IsNullOrWhiteSpace($name)) {
+                continue
+            }
+
+            $description = Get-Field $frontmatter "description"
+            $color = Get-Field $frontmatter "color"
+            $slug = ConvertTo-Slug $name
+
+            $bodyLines = @()
+            if ($secondDash + 1 -lt $lineArray.Count) {
+                $bodyLines = $lineArray[($secondDash + 1)..($lineArray.Count - 1)]
+            }
+
+            switch ($t) {
+                "antigravity" { Convert-Antigravity $name $description $slug $bodyLines }
+                "gemini-cli"  { Convert-GeminiCli $name $description $slug $bodyLines }
+                "opencode"    { Convert-OpenCode $name $description $color $slug $bodyLines }
+                "cursor"      { Convert-Cursor $name $description $slug $bodyLines }
+                "aider"       { Accumulate-Aider $name $description $bodyLines }
+                "windsurf"    { Accumulate-Windsurf $name $description $bodyLines }
+            }
+            $count++
+        }
+    }
+    return $count
+}
+
+function Write-SingleFileOutputs() {
+    # Aider
+    $aiderDir = Join-Path $OUT_DIR "aider"
+    if (-not (Test-Path $aiderDir)) {
+        New-Item -ItemType Directory -Path $aiderDir -Force | Out-Null
+    }
+    [System.IO.File]::WriteAllText((Join-Path $aiderDir "CONVENTIONS.md"), $Script:AIDER_CONTENT, $utf8NoBom)
+
+    # Windsurf
+    $windsurfDir = Join-Path $OUT_DIR "windsurf"
+    if (-not (Test-Path $windsurfDir)) {
+        New-Item -ItemType Directory -Path $windsurfDir -Force | Out-Null
+    }
+    [System.IO.File]::WriteAllText((Join-Path $windsurfDir ".windsurfrules"), $Script:WINDSURF_CONTENT, $utf8NoBom)
+}
+
+# --- Entry point ---
+
+Write-Header "The Agency -- Converting agents to tool-specific formats"
+Write-Host "  Repo:   $REPO_ROOT"
+Write-Host "  Output: $OUT_DIR"
+Write-Host "  Tool:   $tool"
+Write-Host "  Date:   $TODAY"
+
+$tools_to_run = @()
+if ($tool -eq "all") {
+    $tools_to_run = @("antigravity", "gemini-cli", "opencode", "cursor", "aider", "windsurf")
+} else {
+    $tools_to_run = @($tool)
+}
+
+$total = 0
+foreach ($t in $tools_to_run) {
+    Write-Header "Converting: $t"
+    $count = Run-Conversions $t
+    $total += $count
+
+    # Gemini CLI also needs the extension manifest
+    if ($t -eq "gemini-cli") {
+        $geminiDir = Join-Path $OUT_DIR "gemini-cli"
+        if (-not (Test-Path $geminiDir)) {
+            New-Item -ItemType Directory -Path $geminiDir -Force | Out-Null
+        }
+        $manifestPath = Join-Path $geminiDir "gemini-extension.json"
+        $manifestContent = @"
+{
+  `"name`": `"agency-agents`",
+  `"version`": `"1.0.0`"
+}
+"@
+        [System.IO.File]::WriteAllText($manifestPath, $manifestContent, $utf8NoBom)
+        Write-Info "Wrote gemini-extension.json"
+    }
+
+    Write-Info "Converted $count agents for $t"
+}
+
+if ($tool -eq "all" -or $tool -eq "aider" -or $tool -eq "windsurf") {
+    Write-SingleFileOutputs
+    if ($tool -eq "all" -or $tool -eq "aider") {
+        Write-Info "Wrote integrations/aider/CONVENTIONS.md"
+    }
+    if ($tool -eq "all" -or $tool -eq "windsurf") {
+        Write-Info "Wrote integrations/windsurf/.windsurfrules"
+    }
+}
+
+Write-Host ""
+Write-Info "Done. Total conversions: $total"
